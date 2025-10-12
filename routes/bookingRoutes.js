@@ -193,10 +193,10 @@ router.post("/create", async (req, res) => {
       .populate("facility_id", "facility_id name sports")
       .populate("site_id", "site_name site_address")
       .populate("user_id", "name email phone");
-    req.io.emit("newBooking", {
-      message: "A new booking has been created!",
-      booking: populatedBooking,
-    });
+    // req.io.emit("newBooking", {
+    //   message: "A new booking has been created!",
+    //   booking: populatedBooking,
+    // });
     res.status(201).json({
       success: true,
       message: "Booking created successfully",

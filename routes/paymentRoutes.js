@@ -3,7 +3,7 @@ const router = express.Router();
 const Payment = require("../models/Payment");
 const Booking = require("../models/Booking");
 const Razorpay = require("razorpay");
-
+const crypto = require("crypto");
 const instance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -22,47 +22,38 @@ router.post("/create-order", async (req, res) => {
   });
 });
 
-router.put("/capture/:id", async (req, res) => {
-  const paymentId = req.params.id;
-  const { amount } = req.body; // amount should be in paise (e.g., ₹100.00 = 10000)
+router.put("/order/validate", async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+    req.body;
 
-  if (!amount) {
-    return res
-      .status(400)
-      .json({ error: "Amount is required in the request body (in paise)" });
+  const sha = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+  sha.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+  const digest = sha.digest("hex");
+
+  if (digest !== razorpay_signature) {
+    return res.status(401).json({ msg: "Transaction is not legit!!!!!" });
   }
+  const updatedPayment = await Payment.findOneAndUpdate(
+    { transactionId: razorpay_payment_id },
+    {
+      status: "completed",
+      paidAt: new Date(),
+    },
+    { new: true }
+  );
+  const updatedBooking = await Booking.findByIdAndUpdate(
+    updatedPayment.bookingId,
+    {
+      status: "completed",
+    },
+    { new: true }
+  );
 
-  try {
-    const response = await instance.payments.capture(paymentId, amount);
-
-    const updatedPayment = await Payment.findOneAndUpdate(
-      { transactionId: paymentId },
-      {
-        status: "completed",
-        paidAt: new Date(),
-      },
-      { new: true }
-    );
-    const updatedBooking = await Booking.findByIdAndUpdate(
-      updatedPayment.bookingId,
-      {
-        status: "completed",
-      },
-      { new: true }
-    );
-
-    return res.status(200).json({
-      message: "Payment captured successfully",
-      razorpayResponse: response,
-      updatedPayment,
-    });
-  } catch (error) {
-    console.error("Razorpay capture error:", error);
-    return res.status(500).json({
-      error: "Failed to capture payment",
-      details: error.error || error.message || error,
-    });
-  }
+  return res.status(200).json({
+    message: "Payment captured successfully",
+    razorpayResponse: response,
+    updatedPayment,
+  });
 });
 
 module.exports = router;
