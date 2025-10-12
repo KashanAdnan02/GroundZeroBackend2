@@ -1,16 +1,19 @@
 const express = require("express");
 const router = express.Router();
-// const razorpay = require("../config/razorpayClient"); // adjust path as needed
 const Payment = require("../models/Payment");
-const razorpayClient = require("../config/razorpayClient");
+const Razorpay = require("razorpay");
 
+const instance = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 router.post("/create-order", async (req, res) => {
   const options = {
     amount: 1000 * 100,
     currency: "INR",
   };
 
-  const order = await razorpayClient.orders.create(options);
+  const order = await instance.orders.create(options);
   res.status(200).json({
     success: true,
     order,
