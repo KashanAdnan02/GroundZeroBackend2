@@ -35,8 +35,6 @@ app.use((req, res, next) => {
   req.io = io;
   next();
 });
-console.log(process.env.RAZORPAY_KEY_ID)
-console.log(process.env.RAZORPAY_KEY_SECRET)
 // Routes
 app.use("/api", require("./routes"));
 
@@ -69,4 +67,4 @@ server.listen(PORT, () => {
   console.log(`✅ Server + Socket.IO running on http://localhost:${PORT}`);
 });
 
-module.exports = { app, io };
+// module.exports = { app, io };
