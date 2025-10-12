@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Payment = require("../models/Payment");
+const Booking = require("../models/Booking");
 const Razorpay = require("razorpay");
 
 const instance = new Razorpay({
@@ -10,7 +11,7 @@ const instance = new Razorpay({
 
 router.post("/create-order", async (req, res) => {
   const options = {
-    amount: req.body.amount* 100,
+    amount: req.body.amount * 100,
     currency: "INR",
   };
 
@@ -21,7 +22,7 @@ router.post("/create-order", async (req, res) => {
   });
 });
 
-router.put("/payments/:id/capture", async (req, res) => {
+router.put("/capture/:id", async (req, res) => {
   const paymentId = req.params.id;
   const { amount } = req.body; // amount should be in paise (e.g., ₹100.00 = 10000)
 
@@ -32,15 +33,20 @@ router.put("/payments/:id/capture", async (req, res) => {
   }
 
   try {
-    // Call Razorpay's capture API
     const response = await instance.payments.capture(paymentId, amount);
 
-    // Optionally, update your local DB
     const updatedPayment = await Payment.findOneAndUpdate(
       { transactionId: paymentId },
       {
         status: "completed",
         paidAt: new Date(),
+      },
+      { new: true }
+    );
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      updatedPayment.bookingId,
+      {
+        status: "completed",
       },
       { new: true }
     );
