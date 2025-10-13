@@ -23,8 +23,12 @@ router.post("/create-order", async (req, res) => {
 });
 
 router.put("/order/validate", async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-    req.body;
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+    bookingId,
+  } = req.body;
 
   const sha = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
   sha.update(`${razorpay_order_id}|${razorpay_payment_id}`);
@@ -33,6 +37,16 @@ router.put("/order/validate", async (req, res) => {
   if (digest !== razorpay_signature) {
     return res.status(401).json({ msg: "Transaction is not legit!!!!!" });
   }
+
+  await Payment.findOneAndUpdate(
+    { transactionId: bookingId },
+    {
+      transactionId: razorpay_payment_id,
+    },
+    { new: true }
+  );
+  console.log(bookingId);
+
   const updatedPayment = await Payment.findOneAndUpdate(
     { transactionId: razorpay_payment_id },
     {
@@ -41,18 +55,21 @@ router.put("/order/validate", async (req, res) => {
     },
     { new: true }
   );
+
   const updatedBooking = await Booking.findByIdAndUpdate(
-    updatedPayment.bookingId,
+    updatedPayment?.bookingId,
     {
-      status: "completed",
+      payment_status: "paid",
+      booking_status: "confirmed",
+      auto_check_in: true,
+      auto_check_out: true,
     },
     { new: true }
   );
-
-  return res.status(200).json({
-    message: "Payment captured successfully",
-    razorpayResponse: response,
+  res.status(200).json({
+    message: "Payment Verified successfully",
     updatedPayment,
+    updatedBooking,
   });
 });
 
