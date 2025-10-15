@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const { requireAdmin } = require("../middleware");
+const { sendEmailForAccountCreation } = require("../services/verificationService");
 
 router.get("/", requireAdmin, async (req, res) => {
   try {
@@ -82,8 +83,22 @@ router.get("/:id", requireAdmin, async (req, res) => {
 
 router.post("/", requireAdmin, async (req, res) => {
   try {
-    const { name, email, age, phone, address, isActive, password } = req.body;
-
+    const {
+      name,
+      email,
+      age,
+      phone,
+      isVerified,
+      address,
+      isActive,
+      password,
+      role,
+      site_associated,
+      sendMail,
+    } = req.body;
+    if (!sendMail) {
+      sendEmailForAccountCreation(email, password, phone, name, role);
+    }
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -99,11 +114,20 @@ router.post("/", requireAdmin, async (req, res) => {
       age,
       phone,
       address,
-      isActive,
+      role,
+      isVerified: isVerified,
+      isActive: isActive,
+      site_associated: site_associated || undefined,
       password: hashedPassword,
     });
 
     const savedUser = await user.save();
+    req.io.emit("new_user", {
+      type: "user",
+      time: new Date().getTime(),
+      message: "User created successfully",
+      data: savedUser,
+    });
 
     res.status(201).json({
       success: true,
@@ -129,7 +153,7 @@ router.post("/", requireAdmin, async (req, res) => {
 
 router.put("/:id", requireAdmin, async (req, res) => {
   try {
-    const { name, email, age, phone, address, isActive } = req.body;
+    const { name, email, age, phone, address, isActive, role } = req.body;
 
     let user = await User.findById(req.params.id);
     if (!user) {
@@ -158,6 +182,7 @@ router.put("/:id", requireAdmin, async (req, res) => {
         phone,
         address,
         isActive,
+        role,
       },
       {
         new: true,

@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'superadmin'],
+    enum: ['user', 'admin', 'investor', "facility_manager"],
     default: 'user'
   },
   isActive: {
@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema({
   },
   verificationCode: {
     type: String
+  },
+  site_associated : {
+    type :  mongoose.Schema.Types.ObjectId,
+    ref : "Site",
   },
   verificationExpires: {
     type: Date

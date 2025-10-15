@@ -27,15 +27,15 @@ const bookingSchema = new mongoose.Schema(
       required: true,
     },
     booking_date: {
-      type: String,
+      type: Date,
       required: true,
     },
     start_time: {
-      type: String,
+      type: Date,
       required: true,
     },
     end_time: {
-      type: String,
+      type: Date,
       required: true,
     },
     duration_minutes: {
@@ -131,6 +131,9 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
+bookingSchema.index({ start_time: 1, booking_status: 1, payment_status: 1 });
+bookingSchema.index({ end_time: 1, booking_status: 1 });
+bookingSchema.index({ facility_id: 1, start_time: 1, end_time: 1 });
 bookingSchema.index({ user_id: 1, booking_date: 1 });
 bookingSchema.index({ facility_id: 1, start_time: 1, end_time: 1 });
 bookingSchema.index({ booking_status: 1 });

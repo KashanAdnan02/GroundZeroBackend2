@@ -47,7 +47,6 @@ router.get('/public', async (req, res) => {
   }
 });
 
-router.use(requireAdmin);
 
 router.get('/',async (req, res) => {
   try {
@@ -94,8 +93,9 @@ router.get('/',async (req, res) => {
 router.get('/:id',async (req, res) => {
   try {
     const site = await Site.findById(req.params.id)
-      .populate('facilities', 'facility_id name sports')
-      .select('-__v');
+      .populate('facilities', 'facility_id name sports booking_rules weekly_slots total_bookings sport_bookings site_id')
+      .populate('site_id')
+      // .select('-__v');
     
     if (!site) {
       return res.status(404).json({
@@ -197,6 +197,7 @@ router.post('/', requireAdmin,async (req, res) => {
     });
   }
 });
+router.use(requireAdmin);
 
 router.put('/:id', requireAdmin,async (req, res) => {
   try {

@@ -38,7 +38,8 @@ router.get("/allbooking", async (req, res) => {
   try {
     const bookings = await Booking.find({})
       .populate("user_id")
-      .populate("facility_id");
+      .populate("facility_id")
+      .populate("site_id");
 
     res.status(200).json({
       success: true,
@@ -107,7 +108,6 @@ router.post("/create", async (req, res) => {
       });
     }
 
-
     const booking = new Booking({
       booking_id: generateBookingId(),
       user_id: req.user._id,
@@ -128,25 +128,22 @@ router.post("/create", async (req, res) => {
     const payment = new Payment({
       userId: req.user._id,
       facilityId: facility._id,
-      bookingId:savedBooking._id,
-      sport: sport, // or just sport name if not referencing Sport model
+      bookingId: savedBooking._id,
+      sport: sport,
       site: facility.site_id._id,
       amount: totalAmount,
       currency: "INR",
       paymentMethod: payment_method,
       status: "pending",
-      transactionId: `txn_${savedBooking.booking_id}`, // Or generate separately
+      transactionId: `txn_${savedBooking.booking_id}`,
       paidAt: null,
-      bookingId: savedBooking._id, // Optional: if you want to link payment to booking
+      bookingId: savedBooking._id,
     });
 
     await payment.save();
-    // Update user's bookings
     await User.findByIdAndUpdate(req.user._id, {
       $push: { my_bookings: savedBooking._id },
     });
-
-    // Update facility booking counts
     await Facility.findByIdAndUpdate(
       facility_id,
       {
@@ -160,8 +157,6 @@ router.post("/create", async (req, res) => {
         upsert: false,
       }
     );
-
-    // If sport doesn't exist in sport_bookings array, add it
     const facilityUpdate = await Facility.findById(facility_id);
     const sportExists = facilityUpdate.sport_bookings.some(
       (sb) => sb.sport === sport
@@ -193,15 +188,17 @@ router.post("/create", async (req, res) => {
       .populate("facility_id", "facility_id name sports")
       .populate("site_id", "site_name site_address")
       .populate("user_id", "name email phone");
-    // req.io.emit("newBooking", {
-    //   message: "A new booking has been created!",
-    //   booking: populatedBooking,
-    // });
+    req.io.emit("new_booking", {
+      type : "booking",
+      time: new Date().getTime(),
+      message: "Booking created successfully",
+      data: populatedBooking,
+    });
     res.status(201).json({
       success: true,
       message: "Booking created successfully",
       data: populatedBooking,
-      payment : payment._id
+      payment: payment._id,
     });
   } catch (error) {
     res.status(500).json({

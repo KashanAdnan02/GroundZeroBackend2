@@ -39,6 +39,27 @@ const sendEmailVerification = async (email, code, name) => {
 
   await emailTransporter.sendMail(mailOptions);
 };
+const sendEmailForAccountCreation = async (email, password, phone, name, role) => {  
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Ground Zero - Account Created',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Welcome to Ground Zero!</h2>
+        <p>Hi ${name},</p>
+        <p>your account has been created by admin for ${role} role</p>
+        <p>This is your account email : ${phone || email}</p>
+        <p>and password: ${password}</p>
+        <p>If you aren't create this account, please ignore this email.</p>
+        <hr style="margin: 30px 0;">
+        <p style="color: #666; font-size: 12px;">Ground Zero Sports Booking Platform</p>
+      </div>
+    `
+  };
+
+  await emailTransporter.sendMail(mailOptions);
+};
 
 const sendSMSVerification = async (phone, code, name) => {
   const message = `Hi ${name}, your Ground Zero verification code is: ${code}. This code expires in 15 minutes. If you didn't request this, please ignore.`;
@@ -53,5 +74,6 @@ const sendSMSVerification = async (phone, code, name) => {
 module.exports = {
   generateVerificationCode,
   sendEmailVerification,
+  sendEmailForAccountCreation,
   sendSMSVerification
 };
