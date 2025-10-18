@@ -5,51 +5,7 @@ const bcrypt = require("bcryptjs");
 const { requireAdmin } = require("../middleware");
 const { sendEmailForAccountCreation } = require("../services/verificationService");
 
-router.get("/", requireAdmin, async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      search,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-    } = req.query;
 
-    let query = {};
-    if (search) {
-      query = {
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-        ],
-      };
-    }
-
-    const users = await User.find(query)
-      .sort({ [sortBy]: sortOrder === "desc" ? -1 : 1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .select("-__v");
-
-    const total = await User.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: users,
-      pagination: {
-        current: page,
-        pages: Math.ceil(total / limit),
-        total,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error fetching users",
-      error: error.message,
-    });
-  }
-});
 
 router.get("/:id", requireAdmin, async (req, res) => {
   try {
@@ -95,10 +51,9 @@ router.post("/", requireAdmin, async (req, res) => {
       role,
       site_associated,
       sendMail,
+      investmentPercentage
     } = req.body;
-    if (!sendMail) {
-      sendEmailForAccountCreation(email, password, phone, name, role);
-    }
+    
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -119,6 +74,7 @@ router.post("/", requireAdmin, async (req, res) => {
       isActive: isActive,
       site_associated: site_associated || undefined,
       password: hashedPassword,
+      investmentPercentage
     });
 
     const savedUser = await user.save();
@@ -129,6 +85,9 @@ router.post("/", requireAdmin, async (req, res) => {
       data: savedUser,
     });
 
+    if (sendMail) {
+      sendEmailForAccountCreation(email, password, phone, name, role);
+    }
     res.status(201).json({
       success: true,
       message: "User created successfully",

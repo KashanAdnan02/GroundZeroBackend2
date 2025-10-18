@@ -22,10 +22,24 @@ const siteSchema = new mongoose.Schema(
       zipCode: String,
       country: String,
     },
-    facilities: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Facility'
-    }],
+    facilities: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Facility",
+      },
+    ],
+    investors: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    site_managers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,

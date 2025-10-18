@@ -24,24 +24,8 @@ const facilitySchema = new mongoose.Schema(
     ],
     weekly_slots: {
       monday: {
-        mode: {
-          type: String,
-          enum: ["explicit", "pattern"],
-        },
         slots: [
           {
-            start: String,
-            duration_min: Number,
-          },
-        ],
-        blocks: [
-          {
-            date: String,
-            day: String,
-            month: String,
-            date: String,
-            day: String,
-            month: String,
             from: String,
             to: String,
             duration_min: Number,
@@ -49,21 +33,8 @@ const facilitySchema = new mongoose.Schema(
         ],
       },
       tuesday: {
-        mode: {
-          type: String,
-          enum: ["explicit", "pattern"],
-        },
         slots: [
           {
-            start: String,
-            duration_min: Number,
-          },
-        ],
-        blocks: [
-          {
-            date: String,
-            day: String,
-            month: String,
             from: String,
             to: String,
             duration_min: Number,
@@ -71,21 +42,8 @@ const facilitySchema = new mongoose.Schema(
         ],
       },
       wednesday: {
-        mode: {
-          type: String,
-          enum: ["explicit", "pattern"],
-        },
         slots: [
           {
-            start: String,
-            duration_min: Number,
-          },
-        ],
-        blocks: [
-          {
-            date: String,
-            day: String,
-            month: String,
             from: String,
             to: String,
             duration_min: Number,
@@ -93,21 +51,8 @@ const facilitySchema = new mongoose.Schema(
         ],
       },
       thursday: {
-        mode: {
-          type: String,
-          enum: ["explicit", "pattern"],
-        },
         slots: [
           {
-            start: String,
-            duration_min: Number,
-          },
-        ],
-        blocks: [
-          {
-            date: String,
-            day: String,
-            month: String,
             from: String,
             to: String,
             duration_min: Number,
@@ -115,21 +60,8 @@ const facilitySchema = new mongoose.Schema(
         ],
       },
       friday: {
-        mode: {
-          type: String,
-          enum: ["explicit", "pattern"],
-        },
         slots: [
           {
-            start: String,
-            duration_min: Number,
-          },
-        ],
-        blocks: [
-          {
-            date: String,
-            day: String,
-            month: String,
             from: String,
             to: String,
             duration_min: Number,
@@ -137,21 +69,8 @@ const facilitySchema = new mongoose.Schema(
         ],
       },
       saturday: {
-        mode: {
-          type: String,
-          enum: ["explicit", "pattern"],
-        },
         slots: [
           {
-            start: String,
-            duration_min: Number,
-          },
-        ],
-        blocks: [
-          {
-            date: String,
-            day: String,
-            month: String,
             from: String,
             to: String,
             duration_min: Number,
@@ -159,21 +78,8 @@ const facilitySchema = new mongoose.Schema(
         ],
       },
       sunday: {
-        mode: {
-          type: String,
-          enum: ["explicit", "pattern"],
-        },
         slots: [
           {
-            start: String,
-            duration_min: Number,
-          },
-        ],
-        blocks: [
-          {
-            date: String,
-            day: String,
-            month: String,
             from: String,
             to: String,
             duration_min: Number,
@@ -182,7 +88,7 @@ const facilitySchema = new mongoose.Schema(
       },
     },
     booking_rules: {
-      min_duration_min: Number,
+      min_duration_min: Number,                     
       max_duration_min: Number,
       allowed_durations: [Number],
     },

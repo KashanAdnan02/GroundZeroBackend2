@@ -28,9 +28,13 @@ router.post("/register", async (req, res) => {
       role,
       verificationType,
     } = req.body;
-    console.log(name);
-
     const existingUser = await User.findOne({ email });
+    if (role == "admin" || role == "investor" || role == "site_manager") {
+      return res.status(400).json({
+        success: false,
+        message: "Shana nahi ban chutiye",
+      });
+    }
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -45,7 +49,7 @@ router.post("/register", async (req, res) => {
     const verificationExpires = calculateVerificationExpiry();
 
     const user = new User({
-      name,
+      name: name || "Guest",
       email,
       password: hashedPassword,
       age,
@@ -61,9 +65,9 @@ router.post("/register", async (req, res) => {
     const savedUser = await user.save();
 
     if (verificationType === "phone" && phone) {
-      await sendSMSVerification(phone, verificationCode, name);
+      await sendSMSVerification(phone, verificationCode, name || "Guest");
     } else {
-      await sendEmailVerification(email, verificationCode, name);
+      await sendEmailVerification(email, verificationCode, name || "Guest");
     }
 
     const token = generateToken(savedUser._id);
@@ -199,7 +203,7 @@ router.post("/login", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        site_associated : user.site_associated,
+        site_associated: user.site_associated,
         role: user.role,
         isActive: user.isActive,
       },

@@ -31,6 +31,12 @@ const authenticateUser = async (req, res, next) => {
         message: 'Access denied. User account is inactive.'
       });
     }
+    if (!user.isVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. User account is unverified.'
+      });
+    }
 
     req.user = user;
     next();
