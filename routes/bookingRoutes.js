@@ -99,7 +99,7 @@ router.post("/create", async (req, res) => {
         message: "Time slot not available",
       });
     }
-
+return
     let totalAmount = sportInfo.base_price;
 
     if (equipment_used && equipment_used.length > 0) {
