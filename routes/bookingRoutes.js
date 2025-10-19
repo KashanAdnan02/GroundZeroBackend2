@@ -16,6 +16,8 @@ const checkTimeSlotAvailability = async (
   endTime,
   excludeBookingId = null
 ) => {
+  console.log(startTime);
+  
   const query = {
     facility_id: facilityId,
     booking_status: { $in: ["confirmed", "active"] },
@@ -61,6 +63,7 @@ router.post("/create", async (req, res) => {
       sport,
       booking_date,
       start_time,
+      end_time,
       duration_minutes,
       payment_method,
       notes,
@@ -83,23 +86,17 @@ router.post("/create", async (req, res) => {
       });
     }
 
-    const startDateTime = new Date(start_time);
-    const endDateTime = new Date(
-      startDateTime.getTime() + duration_minutes * 60000
-    );
-
-    const isAvailable = await checkTimeSlotAvailability(
-      facility_id,
-      startDateTime,
-      endDateTime
-    );
-    if (!isAvailable) {
-      return res.status(400).json({
-        success: false,
-        message: "Time slot not available",
-      });
-    }
-return
+    // const isAvailable = await checkTimeSlotAvailability(
+    //   facility_id,
+    //   startDateTime,
+    //   endDateTime
+    // );
+    // if (!isAvailable) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Time slot not available",
+    //   });
+    // }
     let totalAmount = sportInfo.base_price;
 
     if (equipment_used && equipment_used.length > 0) {
@@ -109,14 +106,14 @@ return
     }
 
     const booking = new Booking({
+      start_time,
+      end_time :end_time,
       booking_id: generateBookingId(),
       user_id: req.user._id,
       facility_id,
       site_id: facility.site_id._id,
       sport,
       booking_date: booking_date,
-      start_time: startDateTime,
-      end_time: endDateTime,
       duration_minutes,
       total_amount: totalAmount,
       payment_method,
