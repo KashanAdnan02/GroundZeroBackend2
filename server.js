@@ -43,10 +43,7 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-  // console.log("⚡ Client connected:", socket.id);
-
   socket.on("disconnect", () => {
-    // console.log("❌ Client disconnected:", socket.id);
   });
 });
 
@@ -59,9 +56,6 @@ app.use((err, req, res, next) => {
 app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
-// app.listen(PORT, () => {
-//   console.log(`Server running on http://localhost:${PORT}`);
-// });
 server.listen(PORT, () => {
-  console.log(`✅ Server + Socket.IO running on http://localhost:${PORT}`);
+  console.log(`Server + Socket.IO running on http://localhost:${PORT}`);
 });

@@ -4,8 +4,6 @@ const { extractToken, verifyToken } = require('../utils');
 const authenticateUser = async (req, res, next) => {
   try {
     const token = extractToken(req);
-    // console.log(token);
-    
     
     if (!token) {
       return res.status(401).json({

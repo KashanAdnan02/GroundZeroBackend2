@@ -17,7 +17,6 @@ router.get('/', async (req, res) => {
     }
 
     const decoded = verifyToken(token);
-    console.log(decoded);
     
     const user = await User.findById(decoded.id).select('-password -__v');
     

@@ -45,7 +45,6 @@ router.put("/order/validate", async (req, res) => {
     },
     { new: true }
   );
-  console.log(bookingId);
 
   const updatedPayment = await Payment.findOneAndUpdate(
     { transactionId: razorpay_payment_id },
