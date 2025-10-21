@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
+    avatar :{
+      type: String,
+      default: "https://ui-avatars.com/api/?name=Guest&background=random",
+    },
     name: {
       type: String,
       trim: true,

@@ -2,10 +2,14 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
-const { requireAdmin } = require("../middleware");
-const { sendEmailForAccountCreation } = require("../services/verificationService");
-
-
+const { requireAdmin, authenticateUser } = require("../middleware");
+const {
+  sendEmailForAccountCreation,
+} = require("../services/verificationService");
+const fs = require("fs");
+const path = require("path");
+const cloudinary = require("../config/cloudinary");
+const upload = require("../config/multer");
 
 router.get("/:id", requireAdmin, async (req, res) => {
   try {
@@ -51,9 +55,9 @@ router.post("/", requireAdmin, async (req, res) => {
       role,
       site_associated,
       sendMail,
-      investmentPercentage
+      investmentPercentage,
     } = req.body;
-    
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -74,7 +78,7 @@ router.post("/", requireAdmin, async (req, res) => {
       isActive: isActive,
       site_associated: site_associated || undefined,
       password: hashedPassword,
-      investmentPercentage
+      investmentPercentage,
     });
 
     const savedUser = await user.save();
@@ -110,72 +114,77 @@ router.post("/", requireAdmin, async (req, res) => {
   }
 });
 
-router.put("/:id", requireAdmin, async (req, res) => {
-  try {
-    const { name, email, age, phone, address, isActive, role } = req.body;
+router.put(
+  "/:id/avatar",
+  authenticateUser,
+  upload.single("avatar"),
+  async (req, res) => {
+    try {
+      const userId = req.params.id;
 
-    let user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: "User with this email already exists",
-        });
+      // 1️⃣ Check permissions
+      if (req.user._id.toString() !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ success: false, message: "Forbidden" });
       }
-    }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      {
-        name,
-        email,
-        age,
-        phone,
-        address,
-        isActive,
-        role,
-      },
-      {
-        new: true,
-        runValidators: true,
+      // 2️⃣ Check if file is provided
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No file uploaded" });
       }
-    ).select("-__v");
 
-    res.json({
-      success: true,
-      message: "User updated successfully",
-      data: updatedUser,
-    });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res.status(400).json({
+      // 3️⃣ Find user
+      const user = await User.findById(userId);
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      // 4️⃣ Upload to Cloudinary
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: "user_avatars",
+        resource_type: "image",
+      });
+
+      // 5️⃣ Delete local temp file (uploaded by multer)
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.warn("Failed to delete temp file:", err.message);
+      });
+
+      // 6️⃣ Delete old Cloudinary image (if exists)
+      if (user.avatar && user.avatar.includes("res.cloudinary.com")) {
+        const publicId = user.avatar.split("/").pop().split(".")[0];
+        try {
+          await cloudinary.uploader.destroy(`user_avatars/${publicId}`);
+        } catch (err) {
+          console.warn("Failed to delete old image:", err.message);
+        }
+      }
+
+      // 7️⃣ Save Cloudinary URL in DB
+      user.avatar = uploadResult.secure_url;
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Avatar uploaded successfully",
+        data: {
+          avatar: uploadResult.secure_url,
+          userId: user._id,
+        },
+      });
+    } catch (error) {
+      console.error("Cloudinary Upload Error:", error);
+      res.status(500).json({
         success: false,
-        message: "Invalid user ID format",
+        message: "Avatar upload failed",
+        error: error.message,
       });
     }
-    if (error.name === "ValidationError") {
-      const errors = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors,
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: "Error updating user",
-      error: error.message,
-    });
   }
-});
+);
 
 router.delete("/:id", requireAdmin, async (req, res) => {
   try {

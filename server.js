@@ -5,6 +5,7 @@ const { connectDB } = require("./config");
 require("dotenv").config();
 const http = require("http");
 const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,7 +28,7 @@ const io = new Server(server, {
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 connectDB();
 
 app.use((req, res, next) => {

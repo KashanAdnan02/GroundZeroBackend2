@@ -8,6 +8,40 @@ const { requireAdmin } = require("../middleware");
 const Payment = require("../models/Payment");
 
 router.use(requireAdmin);
+router.post("/allinvestorbooking", async (req, res) => {
+  try {
+    const { site_associated } = req.body; // array of site IDs
+
+    if (!Array.isArray(site_associated) || site_associated.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "site_associated must be a non-empty array of IDs",
+      });
+    }
+
+    // Find all bookings where site_id is one of the IDs in site_associated
+    const bookings = await Booking.find({
+      site_id: { $in: site_associated },
+    })
+      .populate("user_id")
+      .populate("facility_id")
+      .populate("site_id");
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error getting investor bookings",
+      error: error.message,
+    });
+  }
+});
+
+
 router.get("/allbooking", async (req, res) => {
   try {
     const bookings = await Booking.find({})
@@ -117,7 +151,7 @@ router.get('/sites', async (req, res) => {
   }
 });
 
-router.get("/users", requireAdmin, async (req, res) => {
+router.get("/users", async (req, res) => {
   try {
     const {
       page = 1,

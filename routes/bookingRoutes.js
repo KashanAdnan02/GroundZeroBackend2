@@ -311,6 +311,7 @@ router.get("/my-bookings", async (req, res) => {
     const bookings = await Booking.find(query)
       .populate("facility_id", "facility_id name sports")
       .populate("site_id", "site_name site_address")
+      .populate("user_id")
       .sort({ start_time: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
