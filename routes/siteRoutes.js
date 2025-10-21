@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Site = require("../models/Site");
 const { requireAdmin, authenticateUser } = require("../middleware");
+const { requireSiteManager } = require("../middleware/adminAuth");
 
 // Public endpoint for customers to view available sites
 router.get("/public", async (req, res) => {
@@ -308,6 +309,7 @@ router.delete("/:id", requireAdmin, async (req, res) => {
     });
   }
 });
+
 
 router.patch("/:id/toggle-status", requireAdmin, async (req, res) => {
   try {

@@ -114,6 +114,74 @@ router.post("/", requireAdmin, async (req, res) => {
   }
 });
 
+router.put("/:id", requireAdmin, async (req, res) => {
+  try {
+    const { name, email, age, phone, address, isActive, role,investmentPercentage,site_associated } = req.body;
+
+    let user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "User with this email already exists",
+        });
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        name,
+        email,
+        age,
+        phone,
+        address,
+        isActive,
+        role,
+        investmentPercentage,
+        site_associated
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("-__v");
+
+    res.json({
+      success: true,
+      message: "User updated successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID format",
+      });
+    }
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors,
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: "Error updating user",
+      error: error.message,
+    });
+  }
+});
 router.put(
   "/:id/avatar",
   authenticateUser,

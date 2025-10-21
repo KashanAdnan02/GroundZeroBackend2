@@ -8,38 +8,6 @@ const { requireAdmin } = require("../middleware");
 const Payment = require("../models/Payment");
 
 router.use(requireAdmin);
-router.post("/allinvestorbooking", async (req, res) => {
-  try {
-    const { site_associated } = req.body; // array of site IDs
-
-    if (!Array.isArray(site_associated) || site_associated.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "site_associated must be a non-empty array of IDs",
-      });
-    }
-
-    // Find all bookings where site_id is one of the IDs in site_associated
-    const bookings = await Booking.find({
-      site_id: { $in: site_associated },
-    })
-      .populate("user_id")
-      .populate("facility_id")
-      .populate("site_id");
-
-    res.status(200).json({
-      success: true,
-      count: bookings.length,
-      data: bookings,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error getting investor bookings",
-      error: error.message,
-    });
-  }
-});
 
 
 router.get("/allbooking", async (req, res) => {
@@ -108,25 +76,25 @@ router.get("/facilities", async (req, res) => {
   }
 });
 
-router.get('/sites', async (req, res) => {  
+router.get("/sites", async (req, res) => {
   try {
     const { page = 1, limit = 10, search, featured } = req.query;
-    
-    let query = {  };
+
+    let query = {};
     if (search) {
       query = {
         ...query,
         $or: [
-          { site_name: { $regex: search, $options: 'i' } },
-          { site_id: { $regex: search, $options: 'i' } },
-          { 'site_address.city': { $regex: search, $options: 'i' } },
-          { 'site_address.state': { $regex: search, $options: 'i' } }
-        ]
+          { site_name: { $regex: search, $options: "i" } },
+          { site_id: { $regex: search, $options: "i" } },
+          { "site_address.city": { $regex: search, $options: "i" } },
+          { "site_address.state": { $regex: search, $options: "i" } },
+        ],
       };
     }
 
     const sites = await Site.find(query)
-      .populate('facilities', 'facility_id name sports weekly_slots')
+      .populate("facilities", "facility_id name sports weekly_slots")
       .sort({ site_name: 1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -139,14 +107,14 @@ router.get('/sites', async (req, res) => {
       pagination: {
         current: page,
         pages: Math.ceil(total / limit),
-        total
-      }
+        total,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error fetching sites',
-      error: error.message
+      message: "Error fetching sites",
+      error: error.message,
     });
   }
 });
@@ -209,7 +177,7 @@ router.post("/create/free", async (req, res) => {
       payment_status,
       payment_method,
       notes,
-      equipment_used
+      equipment_used,
     } = req.body;
 
     const facility = await Facility.findById(facility_id).populate("site_id");
@@ -402,4 +370,4 @@ router.delete("/booking/:id", async (req, res) => {
     });
   }
 });
-module.exports =  router
+module.exports = router;

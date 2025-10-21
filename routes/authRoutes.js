@@ -89,6 +89,7 @@ router.post("/register", async (req, res) => {
         avatar: savedUser.avatar,
         verificationType: savedUser.verificationType,
         requiresVerification: true,
+        investmentPercentage : savedUser.investmentPercentage
       },
       token,
     });
@@ -112,31 +113,31 @@ router.post("/register", async (req, res) => {
 router.get("/verify", async (req, res) => {
   try {
     const token = extractToken(req);
-    
+
     if (!token) {
       return res.status(401).json({
         success: false,
         message: "No token provided",
       });
     }
-    
+
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.userId);
-    
+
     if (!user) {
       return res.status(401).json({
         success: false,
         message: "User not found",
       });
     }
-    
+
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
         message: "Account is inactive",
       });
     }
-    
+
     res.json({
       success: true,
       message: "Token is valid",
@@ -146,7 +147,8 @@ router.get("/verify", async (req, res) => {
         email: user.email,
         role: user.role,
         isActive: user.isActive,
-        avatar : user.avatar
+        avatar: user.avatar,
+        investmentPercentage: user.investmentPercentage,
       },
     });
   } catch (error) {
@@ -161,7 +163,7 @@ router.get("/verify", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -207,7 +209,8 @@ router.post("/login", async (req, res) => {
         site_associated: user.site_associated,
         role: user.role,
         isActive: user.isActive,
-        avatar : user.avatar
+        avatar: user.avatar,
+        investmentPercentage: user.investmentPercentage,
       },
       token,
     });

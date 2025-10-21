@@ -11,8 +11,10 @@ const facilityRoutes = require("./facilityRoutes");
 const bookingRoutes = require("./bookingRoutes");
 const paymentRoutes = require("./paymentRoutes");
 const adminRoutes = require("./adminRoutes");
+const siteManagerRoutes = require("./siteManagerRoutes");
 
 // Mount routes
+router.use("/site_manager", siteManagerRoutes);
 router.use("/admin", adminRoutes);
 router.use("/pay", paymentRoutes);
 router.use("/auth", authRoutes);

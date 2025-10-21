@@ -488,12 +488,12 @@ router.post("/:id/cancel", async (req, res) => {
       });
     }
 
-    if (booking.user_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
-    }
+    // if (booking.user_id.toString() !== req.user._id.toString()) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Access denied",
+    //   });
+    // }
 
     if (booking.booking_status === "active") {
       return res.status(400).json({
