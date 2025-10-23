@@ -4,6 +4,8 @@ const Booking = require("../models/Booking");
 const Facility = require("../models/Facility");
 const Site = require("../models/Site");
 const { requireSiteManager } = require("../middleware/adminAuth");
+const Payment = require("../models/Payment");
+const User = require("../models/User");
 
 router.use(requireSiteManager);
 
@@ -437,4 +439,349 @@ router.put("/facilities/:id", async (req, res) => {
   }
 });
 
+router.post("/create/free", async (req, res) => {
+  try {
+    let {
+      facility_id,
+      sport,
+      booking_date,
+      start_time,
+      end_time,
+      duration_minutes,
+      booking_status,
+      payment_status,
+      payment_method,
+      notes,
+      equipment_used,
+    } = req.body;
+
+    const facility = await Facility.findById(facility_id).populate("site_id");
+    if (!facility) {
+      return res.status(404).json({
+        success: false,
+        message: "Facility not found",
+      });
+    }
+
+    const sportInfo = facility.sports.find((s) => s.sport === sport);
+    if (!sportInfo) {
+      return res.status(400).json({
+        success: false,
+        message: "Sport not available at this facility",
+      });
+    }
+
+    let totalAmount = sportInfo.base_price;
+
+    if (equipment_used && equipment_used.length > 0) {
+      equipment_used.forEach((eq) => {
+        totalAmount += eq.cost * eq.quantity;
+      });
+    }
+    if (Number(duration_minutes) === 120 || Number(duration_minutes) === 180) {
+      const toAdd = Number(duration_minutes) === 120 ? 1 : 2;
+      end_time = `${Number(end_time.split(":")[0]) + toAdd}:${
+        end_time.split(":")[1]
+      }`;
+    }
+
+    const [hourStr, minute] = end_time.split(":");
+    let hour = Number(hourStr);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+    end_time = `${hour}:${minute.split(" ")[0]} ${ampm}`;
+    const bookings = await Booking.find(
+      {},
+      "booking_status start_time end_time booking_date"
+    );
+    bookings.forEach((b) => {
+      if (b.end_time == end_time && b.start_time == start_time) {
+        return res.status(400).json({
+          success: false,
+          message: "The time is booked for another booking!",
+        });
+      } else if (b.end_time == end_time) {
+        return res.status(400).json({
+          success: false,
+          message: "The booking cannot be for two hours",
+        });
+      }
+    });
+    const booking = new Booking({
+      start_time,
+      end_time: end_time,
+      booking_id: generateBookingId(),
+      user_id: req.user._id,
+      facility_id,
+      site_id: facility.site_id._id,
+      sport,
+      booking_date: booking_date,
+      duration_minutes,
+      total_amount: totalAmount,
+      payment_method,
+      payment_status,
+      booking_status,
+      notes,
+      equipment_used: equipment_used || [],
+    });
+    const savedBooking = await booking.save();
+    const payment = new Payment({
+      userId: req.user._id,
+      facilityId: facility._id,
+      bookingId: savedBooking._id,
+      sport: sport,
+      site: facility.site_id._id,
+      amount: totalAmount,
+      currency: "INR",
+      paymentMethod: payment_method,
+      status: "pending",
+      transactionId: `txn_${savedBooking.booking_id}`,
+      paidAt: null,
+      bookingId: savedBooking._id,
+    });
+
+    await payment.save();
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: { my_bookings: savedBooking._id },
+    });
+    await Facility.findByIdAndUpdate(
+      facility_id,
+      {
+        $inc: { total_bookings: 1 },
+        $set: {
+          [`sport_bookings.$[elem].booking_count`]: 1,
+        },
+      },
+      {
+        arrayFilters: [{ "elem.sport": sport }],
+        upsert: false,
+      }
+    );
+    const facilityUpdate = await Facility.findById(facility_id);
+    const sportExists = facilityUpdate.sport_bookings.some(
+      (sb) => sb.sport === sport
+    );
+    if (!sportExists) {
+      await Facility.findByIdAndUpdate(facility_id, {
+        $push: {
+          sport_bookings: {
+            sport: sport,
+            booking_count: 1,
+          },
+        },
+      });
+    } else {
+      await Facility.findByIdAndUpdate(
+        facility_id,
+        {
+          $inc: {
+            "sport_bookings.$[elem].booking_count": 1,
+          },
+        },
+        {
+          arrayFilters: [{ "elem.sport": sport }],
+        }
+      );
+    }
+
+    const populatedBooking = await Booking.findById(savedBooking._id)
+      .populate("facility_id", "facility_id name sports")
+      .populate("site_id", "site_name site_address")
+      .populate("user_id", "name email phone");
+    req.io.emit("new_booking", {
+      type: "booking",
+      time: new Date().getTime(),
+      message: "Booking created successfully",
+      data: populatedBooking,
+    });
+    res.status(201).json({
+      success: true,
+      message: "Booking created successfully",
+      data: populatedBooking,
+      payment: payment._id,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error creating booking",
+      error: error.message,
+    });
+  }
+});
+
+router.delete("/booking/:id", async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    
+    const booking = await Booking.findById(bookingId);
+    console.log(booking.user_id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // Remove payment associated with this booking
+    await Payment.findOneAndDelete({ bookingId });
+
+    // Decrement facility and sport booking counts
+    await Facility.findByIdAndUpdate(
+      booking.facility_id,
+      {
+        $inc: { total_bookings: -1 },
+      },
+      { new: true }
+    );
+
+    await Facility.findByIdAndUpdate(
+      booking.facility_id,
+      {
+        $inc: { "sport_bookings.$[elem].booking_count": -1 },
+      },
+      {
+        arrayFilters: [{ "elem.sport": booking.sport }],
+      }
+    );
+
+    // Remove booking from user's my_bookings list
+    await User.findByIdAndUpdate(booking.user_id, {
+      $pull: { my_bookings: booking._id },
+    });
+
+    // Delete the booking itself
+    await Booking.findByIdAndDelete(bookingId);
+
+    // Emit a socket event
+    req.io.emit("booking_deleted", {
+      type: "booking",
+      time: new Date().getTime(),
+      message: "Booking deleted successfully",
+      data: booking,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Booking deleted successfully",
+      data: booking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error deleting booking",
+      error: error.message,
+    });
+  }
+});
+
+router.put(
+  "/update/:bookingId",
+  requireSiteManager,
+  async (req, res) => {
+    try {
+      const {
+        facility_id,
+        sport,
+        booking_date,
+        start_time,
+        end_time,
+        duration_minutes,
+        payment_method,
+        notes,
+        equipment_used,
+        payment_status,
+        booking_status,
+      } = req.body;
+
+      const bookingId = req.params.bookingId;
+
+      // Find the existing booking
+      const booking = await Booking.findById(bookingId);
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: "Booking not found",
+        });
+      }
+
+      // Find facility
+      const facility = await Facility.findById(facility_id).populate("site_id");
+      if (!facility) {
+        return res.status(404).json({
+          success: false,
+          message: "Facility not found",
+        });
+      }
+
+      const sportInfo = facility.sports.find((s) => s.sport === sport);
+      if (!sportInfo) {
+        return res.status(400).json({
+          success: false,
+          message: "Sport not available at this facility",
+        });
+      }
+
+      // Calculate total amount again
+      let totalAmount = sportInfo.base_price;
+      if (equipment_used && equipment_used.length > 0) {
+        equipment_used.forEach((eq) => {
+          totalAmount += eq.cost * eq.quantity;
+        });
+      }
+
+      // Update booking fields
+      booking.facility_id = facility_id;
+      booking.site_id = facility.site_id._id;
+      booking.sport = sport;
+      booking.booking_date = booking_date;
+      booking.start_time = start_time;
+      booking.end_time = end_time;
+      booking.duration_minutes = duration_minutes;
+      booking.payment_method = payment_method;
+      booking.notes = notes;
+      booking.total_amount = totalAmount;
+      booking.booking_status = booking_status;
+      booking.payment_status = payment_status;
+      booking.equipment_used = equipment_used || [];
+
+      const updatedBooking = await booking.save();
+
+      // Update payment info
+      await Payment.findOneAndUpdate(
+        { bookingId: updatedBooking._id },
+        {
+          $set: {
+            amount: totalAmount,
+            paymentMethod: payment_method,
+          },
+        }
+      );
+
+      const populatedBooking = await Booking.findById(updatedBooking._id)
+        .populate("facility_id", "facility_id name sports")
+        .populate("site_id", "site_name site_address")
+        .populate("user_id", "name email phone");
+
+      // Emit socket event for live updates
+      req.io.emit("booking_updated", {
+        type: "booking",
+        time: new Date().getTime(),
+        message: "Booking updated successfully",
+        data: populatedBooking,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Booking updated successfully",
+        data: populatedBooking,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error updating booking",
+        error: error.message,
+      });
+    }
+  }
+);
 module.exports = router;

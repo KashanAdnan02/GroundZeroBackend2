@@ -6,9 +6,9 @@ const Site = require("../models/Site");
 const User = require("../models/User");
 const { requireAdmin } = require("../middleware");
 const Payment = require("../models/Payment");
+const { generateBookingId } = require("../utils");
 
 router.use(requireAdmin);
-
 
 router.get("/allbooking", async (req, res) => {
   try {
@@ -166,7 +166,7 @@ router.get("/users", async (req, res) => {
 });
 router.post("/create/free", async (req, res) => {
   try {
-    const {
+    let {
       facility_id,
       sport,
       booking_date,
@@ -203,7 +203,35 @@ router.post("/create/free", async (req, res) => {
         totalAmount += eq.cost * eq.quantity;
       });
     }
+    if (Number(duration_minutes) === 120 || Number(duration_minutes) === 180) {
+      const toAdd = Number(duration_minutes) === 120 ? 1 : 2;
+      end_time = `${Number(end_time.split(":")[0]) + toAdd}:${
+        end_time.split(":")[1]
+      }`;
+    }
 
+    const [hourStr, minute] = end_time.split(":");
+    let hour = Number(hourStr);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+    end_time = `${hour}:${minute.split(" ")[0]} ${ampm}`;
+    const bookings = await Booking.find(
+      {},
+      "booking_status start_time end_time booking_date"
+    );
+    bookings.forEach((b) => {
+      if (b.end_time == end_time && b.start_time == start_time) {
+        return res.status(400).json({
+          success: false,
+          message: "The time is booked for another booking!",
+        });
+      } else if (b.end_time == end_time) {
+        return res.status(400).json({
+          success: false,
+          message: "The booking cannot be for two hours",
+        });
+      }
+    });
     const booking = new Booking({
       start_time,
       end_time: end_time,
@@ -221,7 +249,6 @@ router.post("/create/free", async (req, res) => {
       notes,
       equipment_used: equipment_used || [],
     });
-
     const savedBooking = await booking.save();
     const payment = new Payment({
       userId: req.user._id,

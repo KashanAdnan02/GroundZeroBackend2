@@ -161,7 +161,7 @@ router.get("/by-facility-id/:facilityId", async (req, res) => {
   }
 });
 
-router.use(authenticateUser, requireSiteManager, requireAdmin);
+router.use(requireAdmin);
 router.post("/", async (req, res) => {
   try {
     const { site_id, facility_id, name, sports, weekly_slots, booking_rules } =
