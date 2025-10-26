@@ -6,10 +6,11 @@ require("dotenv").config();
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
-
+const startBookingCleanupJob = require("./utils/fiveMinutesAgo");
 const app = express();
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
+startBookingCleanupJob()
 
 app.use(
   cors({

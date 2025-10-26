@@ -7,7 +7,13 @@ const User = require("../models/User");
 const { requireAdmin } = require("../middleware");
 const Payment = require("../models/Payment");
 const { generateBookingId } = require("../utils");
-
+function convertTo24Hour(timeStr) {
+  const [time, modifier] = timeStr.split(" ");
+  let [hours, minutes] = time.split(":");
+  if (modifier === "PM" && hours !== "12") hours = parseInt(hours, 10) + 12;
+  if (modifier === "AM" && hours === "12") hours = "00";
+  return `${hours.padStart(2, "0")}:${minutes}:00`;
+}
 router.use(requireAdmin);
 
 router.get("/allbooking", async (req, res) => {
@@ -173,13 +179,43 @@ router.post("/create/free", async (req, res) => {
       start_time,
       end_time,
       duration_minutes,
-      booking_status,
-      payment_status,
       payment_method,
+      payment_status,
+      booking_status,
       notes,
       equipment_used,
     } = req.body;
 
+    // Convert date and time strings into Date objects
+    const startDateTime = new Date(
+      `${booking_date}T${convertTo24Hour(start_time)}`
+    );
+    const endDateTime = new Date(
+      `${booking_date}T${convertTo24Hour(end_time)}`
+    );
+
+    // ✅ STEP 1: Check for overlapping bookings
+    const overlappingBooking = await Booking.findOne({
+      facility_id,
+      booking_date,
+      booking_status: { $in: ["pending", "confirmed", "active"] },
+      $or: [
+        {
+          start_time: { $lt: endDateTime },
+          end_time: { $gt: startDateTime },
+        },
+      ],
+    });
+
+    if (overlappingBooking) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This time slot is already booked for this facility. Please choose another time.",
+      });
+    }
+    
+    // return
     const facility = await Facility.findById(facility_id).populate("site_id");
     if (!facility) {
       return res.status(404).json({

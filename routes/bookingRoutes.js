@@ -4,16 +4,17 @@ const Booking = require("../models/Booking");
 const Facility = require("../models/Facility");
 const Site = require("../models/Site");
 const User = require("../models/User");
-const { authenticateUser, requireAdmin } = require("../middleware");
 const { generateBookingId } = require("../utils");
 const Payment = require("../models/Payment");
-const { requireSiteManager } = require("../middleware/adminAuth");
 
 router.get("/available/:facility_id", async (req, res) => {
   try {
     const { facility_id } = req.params;
+    const now = new Date();
+    const date = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
     const bookings = await Booking.find(
-      { facility_id },
+      { facility_id, booking_date: date },
       "booking_status start_time end_time booking_date"
     );
 
@@ -29,6 +30,8 @@ router.get("/available/:facility_id", async (req, res) => {
     });
   }
 });
+const { authenticateUser, requireAdmin } = require("../middleware");
+
 router.use(authenticateUser);
 
 router.get("/allbooking", async (req, res) => {
@@ -65,6 +68,34 @@ router.post("/create", async (req, res) => {
       equipment_used,
     } = req.body;
 
+    // Convert date and time strings into Date objects
+    const startDateTime = new Date(
+      `${booking_date}T${convertTo24Hour(start_time)}`
+    );
+    const endDateTime = new Date(
+      `${booking_date}T${convertTo24Hour(end_time)}`
+    );
+
+    // ✅ STEP 1: Check for overlapping bookings
+    const overlappingBooking = await Booking.findOne({
+      facility_id,
+      booking_date,
+      booking_status: { $in: ["pending", "confirmed", "active"] },
+      $or: [
+        {
+          start_time: { $lt: endDateTime },
+          end_time: { $gt: startDateTime },
+        },
+      ],
+    });
+
+    if (overlappingBooking) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This time slot is already booked for this facility. Please choose another time.",
+      });
+    }
     const facility = await Facility.findById(facility_id).populate("site_id");
     if (!facility) {
       return res.status(404).json({
@@ -189,116 +220,112 @@ router.post("/create", async (req, res) => {
     });
   }
 });
-router.put(
-  "/update/:bookingId",
-  requireAdmin,
-  async (req, res) => {
-    try {
-      const {
-        facility_id,
-        sport,
-        booking_date,
-        start_time,
-        end_time,
-        duration_minutes,
-        payment_method,
-        notes,
-        equipment_used,
-        payment_status,
-        booking_status,
-      } = req.body;
+router.put("/update/:bookingId", requireAdmin, async (req, res) => {
+  try {
+    const {
+      facility_id,
+      sport,
+      booking_date,
+      start_time,
+      end_time,
+      duration_minutes,
+      payment_method,
+      notes,
+      equipment_used,
+      payment_status,
+      booking_status,
+    } = req.body;
 
-      const bookingId = req.params.bookingId;
+    const bookingId = req.params.bookingId;
 
-      // Find the existing booking
-      const booking = await Booking.findById(bookingId);
-      if (!booking) {
-        return res.status(404).json({
-          success: false,
-          message: "Booking not found",
-        });
-      }
-
-      // Find facility
-      const facility = await Facility.findById(facility_id).populate("site_id");
-      if (!facility) {
-        return res.status(404).json({
-          success: false,
-          message: "Facility not found",
-        });
-      }
-
-      const sportInfo = facility.sports.find((s) => s.sport === sport);
-      if (!sportInfo) {
-        return res.status(400).json({
-          success: false,
-          message: "Sport not available at this facility",
-        });
-      }
-
-      // Calculate total amount again
-      let totalAmount = sportInfo.base_price;
-      if (equipment_used && equipment_used.length > 0) {
-        equipment_used.forEach((eq) => {
-          totalAmount += eq.cost * eq.quantity;
-        });
-      }
-
-      // Update booking fields
-      booking.facility_id = facility_id;
-      booking.site_id = facility.site_id._id;
-      booking.sport = sport;
-      booking.booking_date = booking_date;
-      booking.start_time = start_time;
-      booking.end_time = end_time;
-      booking.duration_minutes = duration_minutes;
-      booking.payment_method = payment_method;
-      booking.notes = notes;
-      booking.total_amount = totalAmount;
-      booking.booking_status = booking_status;
-      booking.payment_status = payment_status;
-      booking.equipment_used = equipment_used || [];
-
-      const updatedBooking = await booking.save();
-
-      // Update payment info
-      await Payment.findOneAndUpdate(
-        { bookingId: updatedBooking._id },
-        {
-          $set: {
-            amount: totalAmount,
-            paymentMethod: payment_method,
-          },
-        }
-      );
-
-      const populatedBooking = await Booking.findById(updatedBooking._id)
-        .populate("facility_id", "facility_id name sports")
-        .populate("site_id", "site_name site_address")
-        .populate("user_id", "name email phone");
-
-      // Emit socket event for live updates
-      req.io.emit("booking_updated", {
-        type: "booking",
-        time: new Date().getTime(),
-        message: "Booking updated successfully",
-        data: populatedBooking,
-      });
-
-      res.status(200).json({
-        success: true,
-        message: "Booking updated successfully",
-        data: populatedBooking,
-      });
-    } catch (error) {
-      res.status(500).json({
+    // Find the existing booking
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({
         success: false,
-        message: "Error updating booking",
-        error: error.message,
+        message: "Booking not found",
       });
     }
+
+    // Find facility
+    const facility = await Facility.findById(facility_id).populate("site_id");
+    if (!facility) {
+      return res.status(404).json({
+        success: false,
+        message: "Facility not found",
+      });
+    }
+
+    const sportInfo = facility.sports.find((s) => s.sport === sport);
+    if (!sportInfo) {
+      return res.status(400).json({
+        success: false,
+        message: "Sport not available at this facility",
+      });
+    }
+
+    // Calculate total amount again
+    let totalAmount = sportInfo.base_price;
+    if (equipment_used && equipment_used.length > 0) {
+      equipment_used.forEach((eq) => {
+        totalAmount += eq.cost * eq.quantity;
+      });
+    }
+
+    // Update booking fields
+    booking.facility_id = facility_id;
+    booking.site_id = facility.site_id._id;
+    booking.sport = sport;
+    booking.booking_date = booking_date;
+    booking.start_time = start_time;
+    booking.end_time = end_time;
+    booking.duration_minutes = duration_minutes;
+    booking.payment_method = payment_method;
+    booking.notes = notes;
+    booking.total_amount = totalAmount;
+    booking.booking_status = booking_status;
+    booking.payment_status = payment_status;
+    booking.equipment_used = equipment_used || [];
+
+    const updatedBooking = await booking.save();
+
+    // Update payment info
+    await Payment.findOneAndUpdate(
+      { bookingId: updatedBooking._id },
+      {
+        $set: {
+          amount: totalAmount,
+          paymentMethod: payment_method,
+        },
+      }
+    );
+
+    const populatedBooking = await Booking.findById(updatedBooking._id)
+      .populate("facility_id", "facility_id name sports")
+      .populate("site_id", "site_name site_address")
+      .populate("user_id", "name email phone");
+
+    // Emit socket event for live updates
+    req.io.emit("booking_updated", {
+      type: "booking",
+      time: new Date().getTime(),
+      message: "Booking updated successfully",
+      data: populatedBooking,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Booking updated successfully",
+      data: populatedBooking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error updating booking",
+      error: error.message,
+    });
   }
-);
+});
 
 router.get("/my-bookings", async (req, res) => {
   try {
