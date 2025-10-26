@@ -2,16 +2,16 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/cruddb', );
+    const conn = await mongoose.connect(process.env.MONGODB_URI);
     
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`MongoDB Connected: ${conn.connection.host}`);
+      console.log(`MongoDB Connected!`);
     }
     
     return conn;
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.error('Error connecting to MongoDB:', error.message);
+      console.error('Error connecting to MongoDB!');
     }
     process.exit(1);
   }
