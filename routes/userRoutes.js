@@ -7,7 +7,6 @@ const {
   sendEmailForAccountCreation,
 } = require("../services/verificationService");
 const fs = require("fs");
-const path = require("path");
 const cloudinary = require("../config/cloudinary");
 const upload = require("../config/multer");
 
@@ -114,9 +113,81 @@ router.post("/", requireAdmin, async (req, res) => {
   }
 });
 
+router.put(
+  "/:id/avatar",
+  authenticateUser,
+  upload.single("avatar"),
+  async (req, res) => {
+    try {
+      const userId = req.params.id;
+      if (req.user._id.toString() !== userId && !req.user.isAdmin) {
+        return res.status(403).json({ success: false, message: "Forbidden" });
+      }
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No file uploaded" });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: "user_avatars",
+        resource_type: "image",
+      });
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.warn("Failed to delete temp file:", err.message);
+      });
+
+      if (user.avatar && user.avatar.includes("res.cloudinary.com")) {
+        const publicId = user.avatar.split("/").pop().split(".")[0];
+        try {
+          await cloudinary.uploader.destroy(`user_avatars/${publicId}`);
+        } catch (err) {
+          console.warn("Failed to delete old image:", err.message);
+        }
+      }
+
+      user.avatar = uploadResult.secure_url;
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Avatar uploaded successfully",
+        data: {
+          avatar: uploadResult.secure_url,
+          userId: user._id,
+        },
+      });
+    } catch (error) {
+      console.error("Cloudinary Upload Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Avatar upload failed",
+        error: error.message,
+      });
+    }
+  }
+);
+
 router.put("/:id", requireAdmin, async (req, res) => {
   try {
-    const { name, email, age, phone, address, isActive, role,investmentPercentage,site_associated } = req.body;
+    const {
+      name,
+      email,
+      age,
+      phone,
+      address,
+      isActive,
+      role,
+      investmentPercentage,
+      site_associated,
+    } = req.body;
 
     let user = await User.findById(req.params.id);
     if (!user) {
@@ -147,7 +218,7 @@ router.put("/:id", requireAdmin, async (req, res) => {
         isActive,
         role,
         investmentPercentage,
-        site_associated
+        site_associated,
       },
       {
         new: true,
@@ -182,77 +253,6 @@ router.put("/:id", requireAdmin, async (req, res) => {
     });
   }
 });
-router.put(
-  "/:id/avatar",
-  authenticateUser,
-  upload.single("avatar"),
-  async (req, res) => {
-    try {
-      const userId = req.params.id;
-
-      // 1️⃣ Check permissions
-      if (req.user._id.toString() !== userId && !req.user.isAdmin) {
-        return res.status(403).json({ success: false, message: "Forbidden" });
-      }
-
-      // 2️⃣ Check if file is provided
-      if (!req.file) {
-        return res
-          .status(400)
-          .json({ success: false, message: "No file uploaded" });
-      }
-
-      // 3️⃣ Find user
-      const user = await User.findById(userId);
-      if (!user) {
-        return res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
-
-      // 4️⃣ Upload to Cloudinary
-      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-        folder: "user_avatars",
-        resource_type: "image",
-      });
-
-      // 5️⃣ Delete local temp file (uploaded by multer)
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.warn("Failed to delete temp file:", err.message);
-      });
-
-      // 6️⃣ Delete old Cloudinary image (if exists)
-      if (user.avatar && user.avatar.includes("res.cloudinary.com")) {
-        const publicId = user.avatar.split("/").pop().split(".")[0];
-        try {
-          await cloudinary.uploader.destroy(`user_avatars/${publicId}`);
-        } catch (err) {
-          console.warn("Failed to delete old image:", err.message);
-        }
-      }
-
-      // 7️⃣ Save Cloudinary URL in DB
-      user.avatar = uploadResult.secure_url;
-      await user.save();
-
-      res.status(200).json({
-        success: true,
-        message: "Avatar uploaded successfully",
-        data: {
-          avatar: uploadResult.secure_url,
-          userId: user._id,
-        },
-      });
-    } catch (error) {
-      console.error("Cloudinary Upload Error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Avatar upload failed",
-        error: error.message,
-      });
-    }
-  }
-);
 
 router.delete("/:id", requireAdmin, async (req, res) => {
   try {

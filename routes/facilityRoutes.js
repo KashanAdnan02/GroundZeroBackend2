@@ -2,10 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Facility = require("../models/Facility");
 const Site = require("../models/Site");
-const { requireAdmin, authenticateUser } = require("../middleware");
-const { requireSiteManager } = require("../middleware/adminAuth");
+const { requireAdmin } = require("../middleware");
 
-// Public endpoint for customers to view available facilities
 router.get("/public", async (req, res) => {
   try {
     const { page = 1, limit = 10, search, site_id, sport } = req.query;
@@ -162,6 +160,7 @@ router.get("/by-facility-id/:facilityId", async (req, res) => {
 });
 
 router.use(requireAdmin);
+
 router.post("/", async (req, res) => {
   try {
     const { site_id, facility_id, name, sports, weekly_slots, booking_rules } =

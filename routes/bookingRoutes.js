@@ -2,10 +2,10 @@ const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
 const Facility = require("../models/Facility");
-const Site = require("../models/Site");
 const User = require("../models/User");
 const { generateBookingId } = require("../utils");
 const Payment = require("../models/Payment");
+const { authenticateUser, requireAdmin } = require("../middleware");
 
 router.get("/available/:facility_id", async (req, res) => {
   try {
@@ -30,7 +30,6 @@ router.get("/available/:facility_id", async (req, res) => {
     });
   }
 });
-const { authenticateUser, requireAdmin } = require("../middleware");
 
 router.use(authenticateUser);
 
@@ -220,6 +219,7 @@ router.post("/create", async (req, res) => {
     });
   }
 });
+
 router.put("/update/:bookingId", requireAdmin, async (req, res) => {
   try {
     const {
@@ -521,13 +521,6 @@ router.post("/:id/cancel", async (req, res) => {
       });
     }
 
-    // if (booking.user_id.toString() !== req.user._id.toString()) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     message: "Access denied",
-    //   });
-    // }
-
     if (booking.booking_status === "active") {
       return res.status(400).json({
         success: false,
@@ -713,42 +706,5 @@ router.get("/facility/:facilityId/availability", async (req, res) => {
     });
   }
 });
-
-// setInterval(async () => {
-//   try {
-//     const now = new Date();
-
-//     await Booking.updateMany(
-//       {
-//         start_time: { $lte: now },
-//         booking_status: "confirmed",
-//         payment_status: "paid",
-//         auto_check_in: true,
-//         check_in_time: { $exists: false },
-//       },
-//       {
-//         $set: {
-//           check_in_time: now,
-//           booking_status: "active",
-//         },
-//       }
-//     );
-
-//     await Booking.updateMany(
-//       {
-//         end_time: { $lte: now },
-//         booking_status: "active",
-//         auto_check_out: true,
-//         check_out_time: { $exists: false },
-//       },
-//       {
-//         $set: {
-//           check_out_time: now,
-//           booking_status: "completed",
-//         },
-//       }
-//     );
-//   } catch (error) {}
-// }, 60000);
 
 module.exports = router;

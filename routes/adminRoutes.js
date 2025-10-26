@@ -7,6 +7,7 @@ const User = require("../models/User");
 const { requireAdmin } = require("../middleware");
 const Payment = require("../models/Payment");
 const { generateBookingId } = require("../utils");
+
 function convertTo24Hour(timeStr) {
   const [time, modifier] = timeStr.split(" ");
   let [hours, minutes] = time.split(":");
@@ -170,6 +171,7 @@ router.get("/users", async (req, res) => {
     });
   }
 });
+
 router.post("/create/free", async (req, res) => {
   try {
     let {
@@ -433,4 +435,5 @@ router.delete("/booking/:id", async (req, res) => {
     });
   }
 });
+
 module.exports = router;

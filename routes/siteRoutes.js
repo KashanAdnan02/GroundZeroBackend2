@@ -1,10 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const Site = require("../models/Site");
-const { requireAdmin, authenticateUser } = require("../middleware");
-const { requireSiteManager } = require("../middleware/adminAuth");
+const { requireAdmin } = require("../middleware");
 
-// Public endpoint for customers to view available sites
 router.get("/public", async (req, res) => {
   try {
     const { page = 1, limit = 10, search, featured } = req.query;
