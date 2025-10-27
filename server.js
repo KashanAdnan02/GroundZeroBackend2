@@ -13,8 +13,9 @@ const server = http.createServer(app);
 
 app.use(
   cors({
-    origin: "*",
+    origin: process.env.FRONTEND_URL,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
 
@@ -55,12 +56,14 @@ app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-mongoose.connect(process.env.MONGODB_URI).then((res) => {
-  console.log("Mongodb Connected!");
-  server.listen(PORT, () => {
-    console.log(`http://localhost:${PORT}`);
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then((res) => {
+    console.log("Mongodb Connected!");
+    server.listen(PORT, () => {
+      console.log(`http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.log("Mongodb error: ", err);
   });
-}).catch((err) =>{
-  console.log("Mongodb error: ", err);
-  
-})
