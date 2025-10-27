@@ -6,15 +6,19 @@ const uploadFolder = path.join(__dirname, "..", "uploads", "user_avatars");
 if (!fs.existsSync(uploadFolder)) {
   fs.mkdirSync(uploadFolder, { recursive: true });
 }
+let uuidv4;
+(async () => {
+  const uuid = await import("uuid");
+  uuidv4 = uuid.v4;
+})();
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadFolder);
   },
-  filename: async function (req, file, cb) {
-    const { v4: uuidv4 } = await import("uuid");
+  filename: function (req, file, cb) {
     const ext = path.extname(file.originalname);
-    const fileName = `user_${uuidv4()}${ext}`;
+    const fileName = `user_${uuidv4 ? uuidv4() : Date.now()}${ext}`;
     cb(null, fileName);
   },
 });
