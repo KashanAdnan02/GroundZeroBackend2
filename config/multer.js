@@ -1,8 +1,6 @@
 const multer = require("multer");
 const path = require("path");
-const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
-
 const uploadFolder = path.join(__dirname, "..", "uploads", "user_avatars");
 
 if (!fs.existsSync(uploadFolder)) {
@@ -13,7 +11,8 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadFolder);
   },
-  filename: function (req, file, cb) {
+  filename: async function (req, file, cb) {
+    const { v4: uuidv4 } = await import("uuid");
     const ext = path.extname(file.originalname);
     const fileName = `user_${uuidv4()}${ext}`;
     cb(null, fileName);
@@ -33,7 +32,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const limits = {
-  fileSize: 2 * 1024 * 1024, 
+  fileSize: 2 * 1024 * 1024,
 };
 
 const upload = multer({ storage, fileFilter, limits });
