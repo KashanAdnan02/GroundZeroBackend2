@@ -10,7 +10,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "Guest",
-      maxlength: [50, "Name cannot exceed 50 characters"],
     },
     email: {
       type: String,
