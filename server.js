@@ -1,12 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const { connectDB } = require("./config");
 require("dotenv").config();
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
 const startBookingCleanupJob = require("./utils/fiveMinutesAgo");
+const { default: mongoose } = require("mongoose");
 const app = express();
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
@@ -20,16 +20,15 @@ app.use(
 
 const io = new Server(server, {
   cors: {
-    origin: "*"
+    origin: "*",
   },
 });
 
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-startBookingCleanupJob()
-connectDB()
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+startBookingCleanupJob();
 
 app.use((req, res, next) => {
   req.io = io;
@@ -43,8 +42,7 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-  socket.on("disconnect", () => {
-  });
+  socket.on("disconnect", () => {});
 });
 
 app.use((err, req, res, next) => {
@@ -57,6 +55,12 @@ app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-server.listen(PORT, () => {
-  console.log(`http://localhost:${PORT}`);
-});
+mongoose.connect(process.env.MONGODB_URI).then((res) => {
+  console.log("Mongodb Connected!");
+  server.listen(PORT, () => {
+    console.log(`http://localhost:${PORT}`);
+  });
+}).catch((err) =>{
+  console.log("Mongodb error: ", err);
+  
+})
