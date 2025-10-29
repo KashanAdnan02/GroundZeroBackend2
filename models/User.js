@@ -8,9 +8,8 @@ const userSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      trim: true,
       default: "Guest",
-      maxlength: [50, "Name cannot exceed 50 characters"],
+      trim: true,
     },
     email: {
       type: String,
@@ -89,11 +88,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ email: 1 });
-userSchema.index({ name: 1 });
 
-userSchema.virtual("fullInfo").get(function () {
-  return `${this.name} (${this.email})`;
-});
 userSchema.pre("save", function (next) {
   if (this.isModified("email")) {
     this.email = this.email.toLowerCase();

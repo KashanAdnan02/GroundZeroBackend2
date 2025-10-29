@@ -8,7 +8,7 @@ const {
 } = require("../services/verificationService");
 const fs = require("fs");
 const cloudinary = require("../config/cloudinary");
-const upload = require("../config/multer");
+const upload = require("../config/image_integration");
 
 router.get("/:id", requireAdmin, async (req, res) => {
   try {
